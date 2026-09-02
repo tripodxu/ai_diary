@@ -1152,7 +1152,7 @@ const Engine=(()=>{
     for(let i=0;i<MAXL;i++){
       layers.push({
         targets:gl.createBuffer(),colors:gl.createBuffer(),seeds:gl.createBuffer(),
-        count:0, chaos:0, scale:1, ox:0, oy:0, dim:1
+        count:0, chaos:0, scale:1, ox:0, oy:0, dim:1, rx:0, ry:0
       });
     }
     resize(); addEventListener("resize",resize);
@@ -1188,7 +1188,6 @@ const Engine=(()=>{
     gl.useProgram(prog);
     gl.uniform1f(uni.uTime,state.time);
     gl.uniform2f(uni.uMouse,state.mouse.x,state.mouse.y);
-    gl.uniform2f(uni.uRot,state.mouse.rx,state.mouse.ry);
     gl.uniform1f(uni.uAudio,state.audio);
     const st=S.settings;
     gl.uniform1f(uni.uFlowSpeed,st.flowSpeed);
@@ -1213,6 +1212,7 @@ const Engine=(()=>{
       gl.uniform1f(uni.uOffsetX,L.ox);
       gl.uniform1f(uni.uOffsetY,L.oy);
       gl.uniform1f(uni.uDim,L.dim);
+      gl.uniform2f(uni.uRot,L.rx||0,L.ry||0);   // per-layer 独立旋转
       gl.drawArrays(gl.POINTS,0,L.count);
     }
   }
@@ -1221,14 +1221,19 @@ const Engine=(()=>{
 })();
 
 /* ---------- 每帧驱动 ---------- */
-const Mouse={x:-2.5,y:-2.5,tx:-2.5,ty:-2.5, rx:0,ry:0, active:false}; // rx/ry: 旋转输入，未激活前为 0
+const Mouse={x:-2.5,y:-2.5,tx:-2.5,ty:-2.5, rx:0,ry:0, active:false, down:false};
 let lastMove=0;
+addEventListener("pointerdown",e=>{ if(e.button===0) Mouse.down=true; });
+addEventListener("pointerup",  e=>{ if(e.button===0) Mouse.down=false; });
 addEventListener("pointermove",e=>{
   const tx=(e.clientX/innerWidth)*2-1;
   const ty=-((e.clientY/innerHeight)*2-1);
-  if(!Mouse.active){ Mouse.active=true; Mouse.x=tx; Mouse.y=ty; Mouse.rx=tx; Mouse.ry=ty; }
   Mouse.tx=tx; Mouse.ty=ty;
-  lastMove=performance.now();
+  if(!Mouse.active){ Mouse.active=true; Mouse.x=tx; Mouse.y=ty; }
+  if(Mouse.down && !(S.view==="memory" && Corridor.dragActive)){
+    Mouse.rx=tx; Mouse.ry=ty;
+    lastMove=performance.now();
+  }
 });
 let audioLevel=0;
 let lastFrame=performance.now(), ftAcc=0, ftN=0;
@@ -1236,10 +1241,18 @@ let lastFrame=performance.now(), ftAcc=0, ftN=0;
   const t=now*0.001;
   const dt=Math.min(now-lastFrame,50); lastFrame=now;
   if(Mouse.active){
-    /* 静止 3.5s 后旋转目标缓慢回正，避免长期停在侧棱角度 */
-    if(now-lastMove>3500){ Mouse.tx=lerp(Mouse.tx,0,.015); Mouse.ty=lerp(Mouse.ty,0,.015); }
+    /* 涡旋始终跟随鼠标位置 */
     Mouse.x=lerp(Mouse.x,Mouse.tx,.12); Mouse.y=lerp(Mouse.y,Mouse.ty,.12);
-    Mouse.rx=lerp(Mouse.rx,Mouse.tx,.09); Mouse.ry=lerp(Mouse.ry,Mouse.ty,.09);
+    /* 旋转：只在左键按下时保持，松键后缓慢回正面 */
+    if(!Mouse.down){
+      Mouse.rx=lerp(Mouse.rx,0,.06); Mouse.ry=lerp(Mouse.ry,0,.06);
+    }
+    /* 旋转状态同步给当前活跃层（Garden=layer1，Memory=layer1 中间层） */
+    const Ls=Engine.layers();
+    if(Ls[1]){ Ls[1].rx=Mouse.rx; Ls[1].ry=Mouse.ry; }
+    if(S.view==="memory"){
+      [0,2].forEach(i=>{ if(Ls[i]){ Ls[i].rx=lerp(Ls[i].rx||0,0,.08); Ls[i].ry=lerp(Ls[i].ry||0,0,.08); } });
+    }
   }
   /* Gemini 揭字期间的伪电平：字幕像声音一样驱动粒子 */
   const lvl=Math.max(audioLevel, window.__ttsPulse? .3+.4*Math.abs(Math.sin(now*.0042)) : 0);
