@@ -1077,8 +1077,8 @@ const Engine=(()=>{
 
     /* 鼠标 360° 旋转：X→偏航全周（±180°），Y→俯仰钳在 ±55°——
        保证任意鼠标位置下图像至少保留约六成高度，永远可辨 */
-    float yaw=uRot.x*3.14159;
-    float pitch=uRot.y*0.96;
+    float yaw=-uRot.x*3.14159;
+    float pitch=-uRot.y*0.96;
     vec3 p3=vec3(pos,zz);
     float cy=cos(yaw), sy=sin(yaw);
     p3=vec3(p3.x*cy+p3.z*sy, p3.y, -p3.x*sy+p3.z*cy);
