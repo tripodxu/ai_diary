@@ -2074,10 +2074,7 @@ $("#diaryCloseBtn").addEventListener("click",()=>{ S.phase="formed"; UI.gardenVi
 /* 走廊 */
 $("#prevBtn").addEventListener("click",()=>switchMemory(-1));
 $("#nextBtn").addEventListener("click",()=>switchMemory(1));
-$("#corridorCover").addEventListener("click",()=>{
-  if(Corridor.suppressClick) return;           // 拖拽后抑制误触
-  openDiary(currentMemory());
-});
+/* 回廊点击已由 pointerup 统一处理，corridorCover click handler 废弃 */
 /* 回廊拖拽换页 — 已废弃，改用箭头切换 */
 let corridorDrag=null;
 addEventListener("keydown",e=>{
