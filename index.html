@@ -1092,16 +1092,13 @@ const Engine=(()=>{
     /* 画廊槽位变换 */
     pos=pos*uScale+vec2(uOffsetX,uOffsetY);
 
-    /* 鼠标涡旋 —— 绕光标轻旋 + 轻微内吸，面积守恒，绝无空洞 */
+    /* 水滴投镜：鼠标周围粒子放大+提亮，保持原位，不扭曲 */
     vec2 dm=pos-uMouse; float md=length(dm);
-    float r=max(uMouseRadius*.0028,1e-4);
-    float fall=smoothstep(r,r*.1,md);
-    float swp=fall*.62;
-    float swc=cos(swp), sws=sin(swp);
-    vec2 sw=uMouse+vec2(dm.x*swc-dm.y*sws, dm.x*sws+dm.y*swc);
-    pos=mix(pos,sw,fall);
-    pos-=dm*fall*.03;
-    float mGlow=fall*.35;           /* 光标周围微微提亮 */
+    float radius=max(uMouseRadius*.0028,1e-4);
+    float drop=smoothstep(radius,radius*.15,md);
+    float mScale=1.+drop*.18;
+    float mBright=1.+drop*.65;
+    float mGlow=drop*.45;
 
     gl_Position=vec4(pos,0.,1.);
     /* 颜色：低枢轴对比度 + gamma 提亮中调；色相只做 ±0.15rad 往返微摆（保持照片本色） */
@@ -1113,6 +1110,7 @@ const Engine=(()=>{
     float spark=step(.88,aSeed)*(.82+.18*sin(t*(2.2+aSeed*5.)+aSeed*60.));
     c=mix(c,vec3(2.6,2.8,3.0),spark);
     c*=1.+glow+mGlow;               /* 光波与光标处内发光 */
+    c*=mBright;                     /* 水滴投镜：光标周围粒子提亮 */
     vColor=max(c,0.)*uDim;
     float tw=.9+.1*sin(t*(1.6+aSeed*2.6)+aSeed*41.);
     /* 侧向旋转变暗（有意保留 abs：完全转到背面时不至于整幅全黑）+ 倾斜曝光补偿 */
@@ -1122,7 +1120,7 @@ const Engine=(()=>{
     vAlpha=(.95)*tw*uDim*clamp(w,.6,1.08)*face;
     /* Halo 飘尘（位于图像矩形外）加大加亮，形成外围辉光 */
     float isHalo=step(1.02,max(abs(aTarget.x)/.375,abs(aTarget.y)/.3));
-    gl_PointSize=clamp((uSize*.72+spark*2.2+isHalo*1.8)*uDpr*w,1.,12.);
+    gl_PointSize=clamp((uSize*.72+spark*2.2+isHalo*1.8)*uDpr*w*mScale,1.,14.);
     vAlpha*=1.-isHalo*.32;
   }`;
   const FS=`
@@ -1221,9 +1219,15 @@ const Engine=(()=>{
 })();
 
 /* ---------- 每帧驱动 ---------- */
-const Mouse={x:-2.5,y:-2.5,tx:-2.5,ty:-2.5, rx:0,ry:0, active:false, down:false};
+const Mouse={x:-2.5,y:-2.5,tx:-2.5,ty:-2.5, rx:0,ry:0, active:false, down:false, anchorRx:0,anchorRy:0,anchorTx:0,anchorTy:0};
 let lastMove=0;
-addEventListener("pointerdown",e=>{ if(e.button===0) Mouse.down=true; });
+addEventListener("pointerdown",e=>{
+  if(e.button===0){
+    Mouse.down=true;
+    Mouse.anchorRx=Mouse.rx; Mouse.anchorRy=Mouse.ry;
+    Mouse.anchorTx=Mouse.tx; Mouse.anchorTy=Mouse.ty;
+  }
+});
 addEventListener("pointerup",  e=>{ if(e.button===0) Mouse.down=false; });
 addEventListener("pointermove",e=>{
   const tx=(e.clientX/innerWidth)*2-1;
@@ -1231,7 +1235,8 @@ addEventListener("pointermove",e=>{
   Mouse.tx=tx; Mouse.ty=ty;
   if(!Mouse.active){ Mouse.active=true; Mouse.x=tx; Mouse.y=ty; }
   if(Mouse.down && !(S.view==="memory" && Corridor.dragActive)){
-    Mouse.rx=tx; Mouse.ry=ty;
+    Mouse.rx=Mouse.anchorRx+(tx-Mouse.anchorTx);
+    Mouse.ry=Mouse.anchorRy+(ty-Mouse.anchorTy);
     lastMove=performance.now();
   }
 });
@@ -1243,10 +1248,6 @@ let lastFrame=performance.now(), ftAcc=0, ftN=0;
   if(Mouse.active){
     /* 涡旋始终跟随鼠标位置 */
     Mouse.x=lerp(Mouse.x,Mouse.tx,.12); Mouse.y=lerp(Mouse.y,Mouse.ty,.12);
-    /* 旋转：只在左键按下时保持，松键后缓慢回正面 */
-    if(!Mouse.down){
-      Mouse.rx=lerp(Mouse.rx,0,.06); Mouse.ry=lerp(Mouse.ry,0,.06);
-    }
     /* 旋转状态同步给当前活跃层（Garden=layer1，Memory=layer1 中间层） */
     const Ls=Engine.layers();
     if(Ls[1]){ Ls[1].rx=Mouse.rx; Ls[1].ry=Mouse.ry; }
