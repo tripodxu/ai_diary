@@ -1228,13 +1228,23 @@ addEventListener("pointerdown",e=>{
     Mouse.anchorTx=Mouse.tx; Mouse.anchorTy=Mouse.ty;
   }
 });
-addEventListener("pointerup",  e=>{ if(e.button===0) Mouse.down=false; });
+addEventListener("pointerup",e=>{
+  if(!Mouse.down) return;
+  const tx=(e.clientX/innerWidth)*2-1;
+  const ty=-((e.clientY/innerHeight)*2-1);
+  const moved=Math.abs(tx-Mouse.anchorTx)+Math.abs(ty-Mouse.anchorTy);
+  Mouse.down=false;
+  /* 回廊中快速点击（无拖动）→ 打开当前记忆的日记 */
+  if(S.view==="memory" && moved<0.025){
+    openDiary(currentMemory());
+  }
+});
 addEventListener("pointermove",e=>{
   const tx=(e.clientX/innerWidth)*2-1;
   const ty=-((e.clientY/innerHeight)*2-1);
   Mouse.tx=tx; Mouse.ty=ty;
   if(!Mouse.active){ Mouse.active=true; Mouse.x=tx; Mouse.y=ty; }
-  if(Mouse.down && !(S.view==="memory" && Corridor.dragActive)){
+  if(Mouse.down){
     Mouse.rx=Mouse.anchorRx+(tx-Mouse.anchorTx);
     Mouse.ry=Mouse.anchorRy+(ty-Mouse.anchorTy);
     lastMove=performance.now();
@@ -1258,7 +1268,7 @@ let lastFrame=performance.now(), ftAcc=0, ftN=0;
   /* Gemini 揭字期间的伪电平：字幕像声音一样驱动粒子 */
   const lvl=Math.max(audioLevel, window.__ttsPulse? .3+.4*Math.abs(Math.sin(now*.0042)) : 0);
   /* 回廊呼吸：邻居层明度起伏 + 极慢视差漂移（转场/拖拽期间不介入） */
-  if(S.view==="memory"&&!Corridor.dragActive&&now>Corridor.settleAt){
+  if(S.view==="memory"&&now>Corridor.settleAt){
     const Ls=Engine.layers();
     Ls[0].dim=.42+.07*Math.sin(t*.5);
     Ls[2].dim=.42+.07*Math.sin(t*.5+2.4);
@@ -1496,6 +1506,7 @@ function enterCorridor(){
 /* 点击封面重新打开这段记忆的日记 */
 function openDiary(m){
   const d=m.diary; if(!d) return;
+  Mouse.down=false;                        // 打开日记时停止旋转
   $("#diaryTitle").textContent=d.title||m.name;
   $("#diaryDate").textContent=d.date||"—";
   $("#diaryTime").textContent=d.time||"";
@@ -1503,7 +1514,7 @@ function openDiary(m){
   $("#diaryBody").innerHTML=(d.body||["（这篇日记还没有内容）"]).map(p=>`<p>${p}</p>`).join("");
   $("#diaryCard").style.setProperty("--glow",m.glow||"#3a5a7a");
   $("#diarySaveBtn").classList.add("saved");
-  Caps.clear();                              // 清除残留字幕
+  Caps.clear();
   S.phase="diary"; UI.gardenVisibility();
   $("#diaryBody").scrollTop=0;
 }
@@ -2067,41 +2078,8 @@ $("#corridorCover").addEventListener("click",()=>{
   if(Corridor.suppressClick) return;           // 拖拽后抑制误触
   openDiary(currentMemory());
 });
-/* 回廊拖拽换页（阈值区分点击与拖拽） */
+/* 回廊拖拽换页 — 已废弃，改用箭头切换 */
 let corridorDrag=null;
-$("#view-memory").addEventListener("pointerdown",e=>{
-  if(e.target.closest(".nav-arrow,#dots,#uploadMoreBtn,#diaryCard")) return;
-  corridorDrag={x:e.clientX,y:e.clientY,t:performance.now(),dx:0,moved:false};
-});
-addEventListener("pointermove",e=>{
-  if(!corridorDrag||S.view!=="memory") return;
-  const dx=e.clientX-corridorDrag.x;
-  if(Math.abs(dx)>8) corridorDrag.moved=true;
-  corridorDrag.dx=dx;
-  if(corridorDrag.moved){
-    Corridor.dragActive=true;
-    const off=clamp(dx*0.0009,-0.18,0.18);
-    const Ls=Engine.layers();
-    Ls[0].ox=-0.72+off; Ls[1].ox=off; Ls[2].ox=0.72+off;
-  }
-});
-addEventListener("pointerup",()=>{
-  if(!corridorDrag) return;
-  const dx=corridorDrag.dx||0, dt=performance.now()-corridorDrag.t;
-  const vx=dx/Math.max(dt,1);
-  const wasMoved=corridorDrag.moved;
-  corridorDrag=null; Corridor.dragActive=false;
-  if(wasMoved){
-    const Ls=Engine.layers();
-    [[0,-.72],[1,0],[2,.72]].forEach(([i,base])=>tween(Ls[i],"ox",base,220));
-    if(Math.abs(dx)>70||Math.abs(vx)>0.5){
-      Corridor.suppressClick=true; setTimeout(()=>Corridor.suppressClick=false,80);
-      setTimeout(()=>switchMemory(dx<0?1:-1),240);
-    }else{
-      Corridor.suppressClick=true; setTimeout(()=>Corridor.suppressClick=false,80);
-    }
-  }
-});
 addEventListener("keydown",e=>{
   if(e.key==="Escape"){ $("#settingsPanel").classList.remove("open"); $("#menuOverlay").classList.remove("open"); }
   if(S.view==="memory"){
