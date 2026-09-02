@@ -15,6 +15,125 @@ const DATA = path.join(ROOT, "data");
 const THUMBS = path.join(DATA, "thumbs");
 const DB = path.join(DATA, "memories.json");
 
+/* ============================================================
+   AI 适配层 — 兼容 DeepSeek / OpenAI / Moonshot / Qwen / Ollama / Gemini
+   ============================================================
+   环境变量：
+     AI_PROVIDER  = gemini | deepseek | openai | moonshot | qwen | openrouter | ollama | custom
+     AI_BASE_URL  = https://api.deepseek.com   (custom/openai 系必填，其余内置映射)
+     AI_MODEL     = deepseek-chat              (各提供商给默认值)
+     AI_API_KEY   = sk-...
+   ============================================================ */
+const PROVIDER_MAP = {
+  gemini:     { base: "https://generativelanguage.googleapis.com/v1beta", model: "gemini-2.0-flash", mode: "gemini" },
+  deepseek:   { base: "https://api.deepseek.com", model: "deepseek-chat", mode: "openai" },
+  openai:     { base: "https://api.openai.com", model: "gpt-4o-mini", mode: "openai" },
+  moonshot:   { base: "https://api.moonshot.cn", model: "moonshot-v1-8k", mode: "openai" },
+  qwen:       { base: "https://dashscope.aliyuncs.com/compatible-mode", model: "qwen-turbo", mode: "openai" },
+  openrouter: { base: "https://openrouter.ai/api", model: "openai/gpt-4o-mini", mode: "openai" },
+  ollama:     { base: "http://localhost:11434", model: "llama3", mode: "openai" },
+};
+
+function getAIConfig() {
+  const providerId = (process.env.AI_PROVIDER || "gemini").toLowerCase();
+  const preset = PROVIDER_MAP[providerId];
+  const providerName = preset ? providerId : "custom";
+  return {
+    provider: providerName,
+    base:  process.env.AI_BASE_URL || (preset ? preset.base : ""),
+    model: process.env.AI_MODEL   || (preset ? preset.model : ""),
+    key:   process.env.AI_API_KEY || process.env.GEMINI_API_KEY || "",
+    mode:  preset ? preset.mode : "openai",
+  };
+}
+
+const SYSTEM_PROMPT = `你是「秒秒的AI日记」里的 AI 伙伴，性格温暖、善解人意、像朋友一样聊天。
+用户会和你分享一张照片，请围绕照片真诚交流，引导用户说出感受和故事。
+回复控制在 1-3 句，温柔自然，偶尔用 emoji。`;
+
+async function aiChat(messages, photo) {
+  const cfg = getAIConfig();
+  if (!cfg.base || !cfg.key) throw new Error("AI not configured");
+
+  if (cfg.mode === "gemini") {
+    /* Gemini generateContent 兼容路径 */
+    const transcript = messages.map(m =>
+      (m.role === "user" ? "用户: " : "Gemini: ") + m.content
+    ).join("\n");
+    const prompt = `${SYSTEM_PROMPT}\n\n照片：${photo || "一张照片"}\n\n对话记录：\n${transcript}\n\n请回复用户最后的话：`;
+    const r = await fetch(`${cfg.base}/models/${cfg.model}:generateContent?key=${encodeURIComponent(cfg.key)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.85 } }),
+    });
+    if (!r.ok) throw new Error("gemini upstream " + r.status);
+    const data = await r.json();
+    return (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+  }
+
+  /* OpenAI 兼容路径（DeepSeek / OpenAI / Moonshot / Qwen / OpenRouter / Ollama） */
+  const apiMessages = [
+    { role: "system", content: SYSTEM_PROMPT + (photo ? `\n用户分享了一张「${photo}」的照片。` : "") },
+    ...messages,
+  ];
+  const r = await fetch(`${cfg.base}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${cfg.key}` },
+    body: JSON.stringify({ model: cfg.model, messages: apiMessages, temperature: 0.85, max_tokens: 300 }),
+  });
+  if (!r.ok) { const t = await r.text().catch(()=>""); throw new Error(`upstream ${r.status}: ${t.slice(0,120)}`); }
+  const data = await r.json();
+  return (data.choices?.[0]?.message?.content || "").trim();
+}
+
+async function aiDiary(transcript, photo) {
+  const cfg = getAIConfig();
+  if (!cfg.base || !cfg.key) throw new Error("AI not configured");
+
+  const transcriptText = transcript.map(t =>
+    (t.who === "U" ? "用户: " : "Gemini: ") + t.text
+  ).join("\n");
+
+  const prompt = [
+    `你是「秒秒的AI日记」应用的日记撰写助手。用户和 AI 围绕一张照片（${photo}）对话。`,
+    `请根据聊天记录，以用户的第一人称视角写一篇温柔的中文日记：`,
+    `一个 4-8 字的标题，3 个自然段（每段 60-110 字，贴合聊天里的情绪）。`,
+    `只输出 JSON：{"title":"...","body":["段1","段2","段3"]}`,
+    ``, `聊天记录：`, transcriptText,
+  ].join("\n");
+
+  if (cfg.mode === "gemini") {
+    const r = await fetch(`${cfg.base}/models/${cfg.model}:generateContent?key=${encodeURIComponent(cfg.key)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json", temperature: 0.9 },
+      }),
+    });
+    if (!r.ok) throw new Error("gemini upstream " + r.status);
+    const data = await r.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const m = text.match(/\{[\s\S]*\}/);
+    return JSON.parse(m ? m[0] : text);
+  }
+
+  const r = await fetch(`${cfg.base}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${cfg.key}` },
+    body: JSON.stringify({
+      model: cfg.model,
+      messages: [{ role: "system", content: prompt }],
+      temperature: 0.9, max_tokens: 400, response_format: { type: "json_object" },
+    }),
+  });
+  if (!r.ok) throw new Error("upstream " + r.status);
+  const data = await r.json();
+  const text = data.choices?.[0]?.message?.content || "";
+  const m2 = text.match(/\{[\s\S]*\}/);
+  return JSON.parse(m2 ? m2[0] : text);
+}
+
 for (const dir of [DATA, THUMBS]) fs.mkdirSync(dir, { recursive: true });
 if (!fs.existsSync(DB)) fs.writeFileSync(DB, "[]", "utf8");
 
@@ -110,47 +229,41 @@ async function handleAPI(req, res, url) {
     return json(res, 200, rec);
   }
 
-  /* 生成日记：有 GEMINI_API_KEY 时调用真模型，否则 501 由前端回退本地模板 */
+  /* 生成日记（统一适配层） */
   if (req.method === "POST" && pathname === "/api/diary") {
     let body;
     try { body = JSON.parse((await readBody(req)).toString("utf8")); }
     catch (e) { return json(res, 400, { error: "bad json" }); }
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return json(res, 501, { error: "GEMINI_API_KEY not configured" });
-    const transcript = (Array.isArray(body.transcript) ? body.transcript : [])
-      .map(t => (t && t.who === "U" ? "用户: " : "Gemini: ") + String(t && t.text || ""))
-      .join("\n");
-    const photo = String(body.photo || "一张照片");
-    const prompt = [
-      `你是「秒秒的AI日记」应用的日记撰写助手。用户和 Gemini 围绕一张照片（${photo}）对话。`,
-      `请根据聊天记录，以用户的第一人称视角写一篇温柔的中文日记：`,
-      `一个 4-8 字的标题，3 个自然段（每段 60-110 字，贴合聊天里的情绪）。`,
-      `只输出 JSON：{"title":"...","body":["段1","段2","段3"]}`,
-      ``, `聊天记录：`, transcript,
-    ].join("\n");
     try {
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json", temperature: 0.9 },
-          }),
-        }
-      );
-      if (!resp.ok) throw new Error("upstream " + resp.status);
-      const data = await resp.json();
-      const text = data && data.candidates && data.candidates[0] && data.candidates[0].content
-        && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text || "";
-      const m = text.match(/\{[\s\S]*\}/);
-      const parsed = JSON.parse(m ? m[0] : text);
+      const parsed = await aiDiary(body.transcript || [], body.photo);
       if (!parsed.title || !Array.isArray(parsed.body) || !parsed.body.length) throw new Error("bad shape");
       return json(res, 200, parsed);
     } catch (e) {
       return json(res, 502, { error: String(e && e.message || e) });
     }
+  }
+
+  /* AI 问答（chat 模式） */
+  if (req.method === "POST" && pathname === "/api/chat") {
+    let body;
+    try { body = JSON.parse((await readBody(req)).toString("utf8")); }
+    catch (e) { return json(res, 400, { error: "bad json" }); }
+    try {
+      const reply = await aiChat(body.messages || [], body.photo);
+      return json(res, 200, { reply });
+    } catch (e) {
+      return json(res, 502, { error: String(e && e.message || e) });
+    }
+  }
+
+  /* AI 状态查询（前端显示模型名） */
+  if (req.method === "GET" && pathname === "/api/ai-status") {
+    const cfg = getAIConfig();
+    return json(res, 200, {
+      provider: cfg.provider,
+      model: cfg.model || null,
+      configured: !!(cfg.base && cfg.key),
+    });
   }
 
   /* 删除一条记忆 */

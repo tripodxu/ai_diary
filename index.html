@@ -44,7 +44,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:none
 #stage{position:fixed;inset:0;width:100vw;height:100vh;display:block;z-index:0}
 
 /* ---------- 自定义光标 ---------- */
-#cursor{position:fixed;left:0;top:0;z-index:400;pointer-events:none;will-change:transform}
+#cursor{position:fixed;left:0;top:0;z-index:400;pointer-events:none}
 #cursor .c-dot{position:absolute;width:4px;height:4px;border-radius:50%;background:#dfe5e1;left:-2px;top:-2px}
 #cursor .c-ring{position:absolute;width:26px;height:26px;border-radius:50%;border:1px solid rgba(230,236,232,.55);left:-13px;top:-13px;transition:width .18s,height .18s,left .18s,top .18s,border-color .18s}
 #cursor.hover .c-ring{width:40px;height:40px;left:-20px;top:-20px;border-color:rgba(111,231,183,.75)}
@@ -86,6 +86,57 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:none
 }
 .round-btn:hover{transform:scale(1.07);border-color:rgba(255,255,255,.25)}
 .round-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round}
+
+/* ---------- 模式选择弹窗（录音 / AI 问答） ---------- */
+#modePicker{
+  position:fixed;left:50%;top:55%;transform:translate(-50%,-50%);z-index:115;
+  display:flex;gap:18px;pointer-events:none;
+}
+#modePicker button{
+  pointer-events:auto;
+  width:130px;height:130px;border-radius:18px;
+  background:rgba(10,14,12,.7);border:1px solid rgba(255,255,255,.12);
+  backdrop-filter:blur(12px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  font-size:13px;letter-spacing:.08em;
+  transition:transform .22s,border-color .22s,background .22s;
+}
+#modePicker button:hover{transform:scale(1.06);border-color:rgba(255,255,255,.35);background:rgba(18,24,20,.82)}
+#modePicker button .mp-ico{
+  width:48px;height:48px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+}
+#modePicker button .mp-ico svg{width:22px;height:22px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#modePicker .mp-record .mp-ico{background:rgba(239,95,107,.12);border:1px solid rgba(239,95,107,.35);color:var(--red)}
+#modePicker .mp-record .mp-ico svg{stroke:var(--red)}
+#modePicker .mp-record:hover{border-color:rgba(239,95,107,.5)}
+#modePicker .mp-chat .mp-ico{background:rgba(47,213,117,.12);border:1px solid rgba(47,213,117,.35);color:var(--green)}
+#modePicker .mp-chat .mp-ico svg{stroke:var(--green)}
+#modePicker .mp-chat:hover{border-color:rgba(47,213,117,.5)}
+#modePicker .mp-label{color:#cfd6d1}
+#modePicker .mp-sub{font-size:10.5px;color:#69736c;letter-spacing:.06em}
+#modePicker.hidden{display:none}
+
+/* ---------- 回廊编辑态顶栏 ---------- */
+#editBar{
+  position:fixed;top:0;left:0;right:0;height:64px;z-index:125;
+  display:flex;align-items:center;padding:0 34px;gap:18px;
+  background:rgba(6,9,8,.82);backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+#editBar .eb-back{
+  width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.15);
+  color:#cdd4ce;font-size:15px;display:flex;align-items:center;justify-content:center;
+  transition:background .2s;
+}
+#editBar .eb-back:hover{background:rgba(255,255,255,.07)}
+#editBar .eb-info{font-family:var(--mono);font-size:11.5px;color:#8b948d;letter-spacing:.1em}
+#editBar .eb-info .hl{color:#aeb7b0}
+#editBar .eb-badge{
+  margin-left:auto;padding:5px 14px;border-radius:8px;
+  background:rgba(110,231,183,.1);border:1px solid rgba(110,231,183,.25);
+  font-family:var(--mono);font-size:10.5px;color:#8fe6b5;letter-spacing:.12em;
+}
 
 /* ---------- Gemini 状态胶囊 ---------- */
 #geminiPill{
@@ -514,7 +565,14 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:none
 
 <!-- THE GARDEN -->
 <section id="view-garden">
-  <div id="geminiPill"><span class="dot"></span><span class="serif">Gemini</span></div>
+  <!-- 编辑态顶栏（回廊进入时显示） -->
+  <header id="editBar" class="hidden">
+    <button class="eb-back" id="editBackBtn">←</button>
+    <span class="eb-info"><span class="hl" id="editName">—</span> · 创建于 <span id="editCreated">--:--</span> · <span id="editRevisions">0</span> 次编辑</span>
+    <span class="eb-badge" id="editBadge">编辑模式</span>
+  </header>
+
+  <div id="geminiPill"><span class="dot"></span><span class="serif" id="pillName">Gemini</span></div>
   <div id="typingPill" class="hidden">对方正在输入<span class="tdots"><i></i><i></i><i></i></span></div>
 
   <button id="settingsBtn" class="round-btn" title="粒子参数">
@@ -524,6 +582,20 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:none
   <div id="captionWrap" class="hidden">
     <div id="capMain"></div>
     <div id="capSub" class="hidden"></div>
+  </div>
+
+  <!-- 模式选择弹窗 -->
+  <div id="modePicker" class="hidden">
+    <button class="mp-record" id="mpRecordBtn">
+      <span class="mp-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="currentColor" opacity=".5"/><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></span>
+      <span class="mp-label">录音留声</span>
+      <span class="mp-sub">Record</span>
+    </button>
+    <button class="mp-chat" id="mpChatBtn">
+      <span class="mp-ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+      <span class="mp-label">AI 问答</span>
+      <span class="mp-sub">Chat</span>
+    </button>
   </div>
 
   <div id="micIdle" title="开始对话">
@@ -694,40 +766,38 @@ const isMobile = matchMedia("(max-width:860px)").matches || "ontouchstart" in wi
    ============================================================ */
 const S = {
   view:"garden",                 // garden | memory | music | info
-  phase:"empty",                 // empty | forming | formed | listening | speaking | paused | saving | diary
+  phase:"empty",                 // empty | forming | formed | modePick | listening | speaking | paused | saving | diary
+  sessionMode:null,              // null | "record" | "chat"
   memoryIdx:0,
   memories:[],                   // {id,name,img,samples,glow,music,diary?}
   settings:{
     dispersion:1.5, particleSize:2.8, contrast:1.3, flowSpeed:1.0, flowAmplitude:1.0,
-    depthStrength:50.0, mouseRadius:110.0, colorShiftSpeed:2.0, danceStrength:7.5, depthWave:8.5
+    depthStrength:18.0, mouseRadius:68.0, colorShiftSpeed:2.0, danceStrength:7.5, depthWave:5.0
   },
   muted:true,                    // 初始为静音图标（与视频一致），首次交互后开启
   sessionStart:0, sessionElapsed:0, timerOn:false,
   demoScenario:null, demoSeenAll:false, backend:"?",
 };
 
-/* ============================================================
-   自定义光标
-   ============================================================ */
-(()=>{
-  const cur=$("#cursor"); let mx=innerWidth/2,my=innerHeight/2,rx=mx,ry=my;
-  addEventListener("pointermove",e=>{mx=e.clientX;my=e.clientY;});
-  addEventListener("pointerover",e=>{
-    cur.classList.toggle("hover", !!e.target.closest("button, a, input, .track"));
-  });
-  (function loop(){ rx=lerp(rx,mx,.2); ry=lerp(ry,my,.2);
-    cur.style.transform=`translate(${rx}px,${ry}px)`; requestAnimationFrame(loop);})();
-})();
+/* P2: 自定义光标已合并到主帧循环，见 Cur 对象 */
 
 /* ============================================================
    程序化「回忆照片」绘制器 —— 粒子的颜色来源
    ============================================================ */
 function makeCanvas(w,h){ const c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
+/* P4: grain 噪声优化 — 在 1x 分辨率画布上操作，再 upscale 到 2x，减少 75% 像素迭代 */
 function grain(ctx,w,h,amt){
-  const d=ctx.getImageData(0,0,w,h), p=d.data;
+  /* w,h 是逻辑尺寸（220x275），ctx 已经 scale(2,2)，实际像素是 440x550 */
+  /* 在 1x 尺寸上做 grain，再画回 2x 画布 */
+  const off=makeCanvas(w,h), oc=off.getContext("2d");
+  oc.drawImage(ctx.canvas,0,0,w,h); /* 降采样到 1x */
+  const d=oc.getImageData(0,0,w,h), p=d.data;
   for(let i=0;i<p.length;i+=4){ const n=(Math.random()-.5)*amt;
     p[i]+=n; p[i+1]+=n; p[i+2]+=n; }
-  ctx.putImageData(d,0,0);
+  oc.putImageData(d,0,0);
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0); /* 重置 transform 以像素坐标绘制 */
+  ctx.drawImage(off,0,0,w*2,h*2); /* upscale 回 2x */
+  ctx.restore();
 }
 /* 1. 黄昏湖心亭 */
 function paintPavilion(){
@@ -770,7 +840,7 @@ function paintPavilion(){
   // 倒影
   x.fillStyle="rgba(18,13,9,.5)";
   x.fillRect(cx-26,base+10,52,26);
-  grain(x,w*2,h*2,26);
+  grain(x,w,h,26);
   return c;
 }
 /* 2. 圣诞树 */
@@ -821,7 +891,7 @@ function paintTree(){
   // 树顶星
   x.fillStyle="#fff3cc"; x.shadowColor="#ffd27a"; x.shadowBlur=12;
   x.beginPath(); x.arc(cx,top-4,3,0,7); x.fill(); x.shadowBlur=0;
-  grain(x,w*2,h*2,20);
+  grain(x,w,h,20);
   return c;
 }
 /* 3. 夜色阶梯 */
@@ -855,7 +925,7 @@ function paintStairs(){
     x.restore();
   };
   fig(w*.42,h*.66,1.05); fig(w*.6,h*.6,0.8);
-  grain(x,w*2,h*2,24);
+  grain(x,w,h,24);
   return c;
 }
 /* 4. 白鸟 */
@@ -874,7 +944,7 @@ function paintGull(){
     x.restore(); x.globalAlpha=1;
   };
   gull(w*.5,h*.34,1.6,1); gull(w*.28,h*.24,.9,.75); gull(w*.72,h*.22,.7,.55); gull(w*.62,h*.44,.5,.4);
-  grain(x,w*2,h*2,18);
+  grain(x,w,h,18);
   return c;
 }
 /* 5. 星光帽子 */
@@ -901,7 +971,7 @@ function paintHat(){
     x.beginPath(); x.arc(rnd(w*.22,w*.78),rnd(h*.2,h*.85),rnd(.7,1.6),0,7); x.fill();
   }
   x.shadowBlur=0;
-  grain(x,w*2,h*2,20);
+  grain(x,w,h,20);
   return c;
 }
 /* 6. 浮泡自画像 */
@@ -924,7 +994,7 @@ function paintBubble(){
   // 高光
   x.fillStyle="rgba(255,255,255,.85)";
   x.beginPath(); x.ellipse(w*.33,h*.35,4,2.4,-.6,0,7); x.fill();
-  grain(x,w*2,h*2,16);
+  grain(x,w,h,16);
   return c;
 }
 
@@ -932,7 +1002,19 @@ function paintBubble(){
    粒子采样：把图片变成「星尘坐标 + 颜色」
    ============================================================ */
 const Sampler = (()=>{
+  /* P6: LRU 缓存 — 访问时移到末尾，淘汰时删最旧（开头） */
   const cache=new Map();
+  const MAX_CACHE=24;
+  function cacheGet(k){
+    if(!cache.has(k)) return null;
+    const v=cache.get(k); cache.delete(k); cache.set(k,v); /* 移到末尾=最近使用 */
+    return v;
+  }
+  function cacheSet(k,v){
+    if(cache.has(k)) cache.delete(k);
+    cache.set(k,v);
+    while(cache.size>MAX_CACHE){ cache.delete(cache.keys().next().value); }
+  }
   /* 网格分辨率：桌面 ~290x363≈10.5 万 全量覆盖，移动端 ~200x250；低帧率时降档 */
   let GW=isMobile?200:290, GH=Math.round(GW*1.25);
   let degraded=false;
@@ -940,14 +1022,15 @@ const Sampler = (()=>{
     if(degraded||isMobile) return false;
     degraded=true;
     GW=Math.round(GW*.72); GH=Math.round(GW*1.25);
-    cache.clear();
+    /* P6: 降级时只清除低优先级条目（stride>1 的邻居层），保留当前层 */
+    for(const k of cache.keys()){ if(k.charAt(0)!=="1") cache.delete(k); }
     return true;
   }
   let sidCounter=0;
   function sample(imgCanvas,stride){
     if(!imgCanvas.__sid) imgCanvas.__sid=++sidCounter;
     const cacheKey=(stride||1)+"_"+imgCanvas.__sid;
-    if(cache.has(cacheKey)) return cache.get(cacheKey);
+    const hit=cacheGet(cacheKey); if(hit) return hit;
     const off=makeCanvas(GW,GH), oc=off.getContext("2d");
     oc.drawImage(imgCanvas,0,0,GW,GH);
     const data=oc.getImageData(0,0,GW,GH).data;
@@ -1002,9 +1085,7 @@ const Sampler = (()=>{
       seeds:new Float32Array(seeds),
       count:seeds.length
     };
-    /* 缓存有上限，防止上传多张后 Float32Array 常驻内存 */
-    if(cache.size>48){ const k=cache.keys().next().value; cache.delete(k); }
-    cache.set(cacheKey,out);
+    cacheSet(cacheKey,out);
     return out;
   }
   /* 空闲时的稀疏尘埃场 */
@@ -1031,10 +1112,11 @@ const Engine=(()=>{
   let ok=!!gl, prog=null, uni={}, attrs={}, layers=[];
   const MAXL=3;
 
+  /* ---- 粒子顶点着色器 ---- */
   const VS=`
   attribute vec2 aTarget; attribute vec3 aColor; attribute float aSeed;
-  uniform vec2 uMouse;      /* 屏幕坐标：仅供涡旋用（初始在屏外） */
-  uniform vec2 uRot;        /* 旋转输入：未激活时 (0,0)，图像正面朝前 */
+  uniform vec2 uMouse;
+  uniform vec2 uRot;
   uniform float uTime,uChaos,uFlowSpeed,uFlowAmp,uDispersion,uMouseRadius;
   uniform float uDance,uDepthWave,uSize,uContrast,uColorShift,uAudio,uDepthStrength;
   uniform float uScale,uOffsetX,uOffsetY,uDim,uDpr;
@@ -1051,32 +1133,23 @@ const Engine=(()=>{
   void main(){
     float t=uTime;
     vec2 p=aTarget;
-    /* 连贯流场 —— 缎带般的漂移（幅度收敛，保住照片可读性） */
     vec2 fp=p*2.1+aSeed*.4;
     float n1=fbm(fp+vec2(t*.13*uFlowSpeed,-t*.1*uFlowSpeed));
     float n2=fbm(fp*1.7+vec2(-t*.11*uFlowSpeed,t*.14*uFlowSpeed)+37.);
     vec2 flow=(vec2(n1,n2)-.5)*2.*(.016*uFlowAmp+uDispersion*.011);
-    /* 微颤 —— 细密 dither 般的呼吸 */
     vec2 jit=vec2(sin(t*(3.1+aSeed*2.)+aSeed*83.),cos(t*(2.7+aSeed*1.7)+aSeed*47.))*(.0022+uDispersion*.0018);
-    /* 音频之舞 —— 窄带行进光波（只做亮度调制）+ 轻微位移 */
     float ring=sin(length(p)*30.0 - t*2.0 + aSeed*.12);
     float band=smoothstep(.55,1.,max(ring,0.));
     float glow=band*(.26+uAudio*.55)*(.3+uDance*.09);
     vec2 dance=vec2(sin(p.x*6.5+p.y*4.5-t*2.6+aSeed*2.2),cos(p.x*4.5-p.y*6.5+t*2.2))*.0006*(1.+uAudio*uDance*.25);
     vec2 pos=p+flow+jit+dance;
-    /* 混沌弥散（转场专用；稳态一致分支跳过，省一半顶点 ALU） */
     if(uChaos>0.001){
       float sc1=fbm(p*1.25+aSeed*7.+t*.05), sc2=fbm(p*1.05-t*.04+91.);
       pos=mix(pos,(vec2(sc1,sc2)-.5)*3.4+vec2(0.,sin(t*.4+aSeed*6.28)*.12),uChaos);
     }
-
-    /* 亮度浮雕深度（幅度收敛：旋转时照片仍可读） */
     float lum0=dot(aColor,vec3(.299,.587,.114));
     float zz=(lum0-.42)*.16*(uDepthStrength*.02+.4)+(aSeed-.5)*.03;
     zz+=sin(t*.55+aSeed*6.2831)*uDepthWave*.014;
-
-    /* 鼠标 360° 旋转：X→偏航全周（±180°），Y→俯仰钳在 ±55°——
-       保证任意鼠标位置下图像至少保留约六成高度，永远可辨 */
     float yaw=-uRot.x*3.14159;
     float pitch=uRot.y*0.96;
     vec3 p3=vec3(pos,zz);
@@ -1084,54 +1157,117 @@ const Engine=(()=>{
     p3=vec3(p3.x*cy+p3.z*sy, p3.y, -p3.x*sy+p3.z*cy);
     float cp=cos(pitch), sp=sin(pitch);
     p3=vec3(p3.x, p3.y*cp-p3.z*sp, p3.y*sp+p3.z*cp);
-
-    /* 透视投影（较平的视场，减少旋转时的畸变） */
     float w=3.2/(3.2+p3.z);
     pos=p3.xy*w;
-
-    /* 画廊槽位变换 */
     pos=pos*uScale+vec2(uOffsetX,uOffsetY);
 
-    /* 水滴投镜：鼠标周围粒子放大+提亮，保持原位，不扭曲 */
+    /* 水滴透镜：粒子归位 + 淡出，为原图让路 */
     vec2 dm=pos-uMouse; float md=length(dm);
     float radius=max(uMouseRadius*.0028,1e-4);
-    float drop=smoothstep(radius,radius*.15,md);
-    float mScale=1.+drop*.18;
-    float mBright=1.+drop*.65;
-    float mGlow=drop*.45;
+    float lensMask=smoothstep(radius,radius*.08,md);       /* 1=中心, 0=外围 */
+    /* 中心粒子归位到采样坐标（贴图对齐），边缘保持星尘态 */
+    vec2 home=aTarget*uScale+vec2(uOffsetX,uOffsetY);      /* 无流场/无旋转的原位 */
+    pos=mix(pos,home,lensMask*.92);                         /* 中心92%归位，留8%微颤 */
+    float mScale=1.+lensMask*.12;                           /* 中心粒子微缩（让位贴图） */
+    float mBright=1.+lensMask*.35;                          /* 边缘微亮（弯月面） */
 
     gl_Position=vec4(pos,0.,1.);
-    /* 颜色：低枢轴对比度 + gamma 提亮中调；色相只做 ±0.15rad 往返微摆（保持照片本色） */
     vec3 c=hueShift(aColor,sin(t*.12)*.15*uColorShift);
     c=clamp((c-.14)*uContrast+.14,0.,1.5);
     c*=1.35;
     c=pow(max(c,0.),vec3(.9));
-    /* 星屑闪粉：12% 颗粒，亮度极强（暗部背景下直接冲到白色） */
     float spark=step(.88,aSeed)*(.82+.18*sin(t*(2.2+aSeed*5.)+aSeed*60.));
     c=mix(c,vec3(2.6,2.8,3.0),spark);
-    c*=1.+glow+mGlow;               /* 光波与光标处内发光 */
-    c*=mBright;                     /* 水滴投镜：光标周围粒子提亮 */
+    c*=1.+glow; c*=mBright;
     vColor=max(c,0.)*uDim;
     float tw=.9+.1*sin(t*(1.6+aSeed*2.6)+aSeed*41.);
-    /* 侧向旋转变暗（有意保留 abs：完全转到背面时不至于整幅全黑）+ 倾斜曝光补偿 */
     float face=mix(.74,1.,smoothstep(0.,1.,abs(cy*cp)));
     c*=1.+(1.-abs(cy*cp))*.22;
     vColor=max(c,0.)*uDim;
     vAlpha=(.95)*tw*uDim*clamp(w,.6,1.08)*face;
-    /* Halo 飘尘（位于图像矩形外）加大加亮，形成外围辉光 */
     float isHalo=step(1.02,max(abs(aTarget.x)/.375,abs(aTarget.y)/.3));
-    gl_PointSize=clamp((uSize*.72+spark*2.2+isHalo*1.8)*uDpr*w*mScale,1.,14.);
+    gl_PointSize=clamp((uSize*.72+spark*2.2+isHalo*1.8)*uDpr*w*mScale,1.,18.);
+    /* 透镜核心粒子完全淡出，弯月面保留 */
     vAlpha*=1.-isHalo*.32;
+    vAlpha*=1.-lensMask*.88;                                /* 中心88%淡出 */
   }`;
+
+  /* ---- 粒子片段着色器 ---- */
   const FS=`
   precision mediump float;
   varying vec3 vColor; varying float vAlpha;
   void main(){
     vec2 uv=gl_PointCoord-.5;
     float d=length(uv);
-    float a=smoothstep(.5,.1,d)*vAlpha;
-    gl_FragColor=vec4(vColor*a,a);
+    float core=smoothstep(.35,.0,d);
+    float rim=smoothstep(.5,.15,d);
+    float a=rim*vAlpha;
+    vec3 col=vColor*(1.+core*.6);
+    gl_FragColor=vec4(col*a,a);
   }`;
+
+  /* ---- 水滴透镜着色器（网格贴图通道：跟随旋转的原图显影） ---- */
+  const lensVS=`
+  attribute vec2 aPos;               /* 网格顶点，图像空间 x∈[-.375,.375] y∈[-.3,.3] */
+  uniform vec2 uRot;
+  uniform float uScale,uOffsetX,uOffsetY;
+  varying vec2 vUV;                  /* 图像 UV [0,1] */
+  varying vec2 vScr;                 /* 屏幕裁剪坐标 */
+  void main(){
+    vUV=vec2(aPos.x/0.75+0.5, 0.5-aPos.y/0.6);
+    /* 与粒子完全相同的变换链（z=0 平面）：旋转→透视→槽位 */
+    float yaw=-uRot.x*3.14159;
+    float pitch=uRot.y*0.96;
+    vec3 p3=vec3(aPos,0.);
+    float cy=cos(yaw), sy=sin(yaw);
+    p3=vec3(p3.x*cy+p3.z*sy, p3.y, -p3.x*sy+p3.z*cy);
+    float cp=cos(pitch), sp=sin(pitch);
+    p3=vec3(p3.x, p3.y*cp-p3.z*sp, p3.y*sp+p3.z*cp);
+    float w=3.2/(3.2+p3.z);
+    vec2 pos=p3.xy*w;
+    pos=pos*uScale+vec2(uOffsetX,uOffsetY);
+    vScr=pos;
+    gl_Position=vec4(pos,0.,1.);
+  }`;
+
+  const lensFS=`
+  precision mediump float;
+  uniform sampler2D uTex;            /* 原图纹理 */
+  uniform vec2 uMouse;
+  uniform float uRadius,uAspect;
+  varying vec2 vUV; varying vec2 vScr;
+  void main(){
+    /* 屏幕空间水滴圆域（x 乘宽高比，保证屏幕上是正圆、不随图旋转） */
+    vec2 d=vec2((vScr.x-uMouse.x)*uAspect, vScr.y-uMouse.y);
+    float r=length(d)/max(uRadius,1e-4);
+    if(r>1.0) discard;
+    float circle=smoothstep(1.0,.955,r);
+    /* 凸透镜折射：采样 UV 向水滴中心收缩，中心放大 */
+    vec2 dir=r>1e-5?d/length(d):vec2(0.);
+    float mag=(1.-pow(r,1.4))*.05;
+    vec2 uvOff=vec2(dir.x/uAspect,dir.y)*mag;
+    /* 色散：R/B 通道折射强度略异 */
+    vec3 col;
+    col.r=texture2D(uTex,clamp(vUV-uvOff*1.16,0.,1.)).r;
+    col.g=texture2D(uTex,clamp(vUV-uvOff     ,0.,1.)).g;
+    col.b=texture2D(uTex,clamp(vUV-uvOff*.84 ,0.,1.)).b;
+    /* 左上高光斑 */
+    float hl=length(vec2(d.x/uAspect/max(uRadius,1e-4)+.32, d.y/max(uRadius,1e-4)-.32));
+    col+=vec3(smoothstep(.34,.0,hl)*.30);
+    /* 边缘亮环 */
+    col+=vec3(smoothstep(.84,1.0,r)*.35);
+    /* 右下内阴影（体积感） */
+    float sh=dot(normalize(d+vec2(1e-6)),normalize(vec2(.35,-.55)));
+    col-=vec3(smoothstep(.1,.85,sh)*smoothstep(.25,1.,r)*.16);
+    col=clamp(col,0.,1.);
+    col=pow(col,vec3(.92));
+    gl_FragColor=vec4(col*circle,circle);
+  }`;
+
+  /* ---- WebGL 初始化 ---- */
+  let lensProg=null, lensUni={}, lensAttrs={};
+  let quadBuf=null, lensIdxBuf=null, lensIdxCount=0;
+  const texCache=new Map();         /* memoryId → WebGLTexture */
 
   function shader(type,src){
     const sh=gl.createShader(type); gl.shaderSource(sh,src); gl.compileShader(sh);
@@ -1139,6 +1275,7 @@ const Engine=(()=>{
     return sh;
   }
   function init(){
+    /* 粒子 program */
     prog=gl.createProgram();
     gl.attachShader(prog,shader(gl.VERTEX_SHADER,VS));
     gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,FS));
@@ -1147,15 +1284,41 @@ const Engine=(()=>{
      "uDance","uDepthWave","uSize","uContrast","uColorShift","uAudio","uDepthStrength",
      "uScale","uOffsetX","uOffsetY","uDim","uDpr"].forEach(n=>uni[n]=gl.getUniformLocation(prog,n));
     ["aTarget","aColor","aSeed"].forEach(n=>attrs[n]=gl.getAttribLocation(prog,n));
+
+    /* 透镜 program */
+    lensProg=gl.createProgram();
+    gl.attachShader(lensProg,shader(gl.VERTEX_SHADER,lensVS));
+    gl.attachShader(lensProg,shader(gl.FRAGMENT_SHADER,lensFS));
+    gl.linkProgram(lensProg);
+    ["uMouse","uRot","uScale","uOffsetX","uOffsetY","uRadius","uAspect","uTex"]
+      .forEach(n=>lensUni[n]=gl.getUniformLocation(lensProg,n));
+    lensAttrs.aPos=gl.getAttribLocation(lensProg,"aPos");
+
+    /* 透镜网格：图像矩形 24×30 分段，顶点走与粒子相同的变换链 */
+    const SEGX=24,SEGY=30,MW=.375,MH=.3,verts=[],idx=[];
+    for(let y=0;y<=SEGY;y++)for(let x=0;x<=SEGX;x++){
+      verts.push(-MW+2*MW*x/SEGX, -MH+2*MH*y/SEGY);
+    }
+    for(let y=0;y<SEGY;y++)for(let x=0;x<SEGX;x++){
+      const a=y*(SEGX+1)+x,b=a+1,c=a+SEGX+1,d2=c+1;
+      idx.push(a,b,c, b,d2,c);
+    }
+    quadBuf=gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER,quadBuf);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.STATIC_DRAW);
+    lensIdxBuf=gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,lensIdxBuf);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);
+    lensIdxCount=idx.length;
+
     for(let i=0;i<MAXL;i++){
       layers.push({
         targets:gl.createBuffer(),colors:gl.createBuffer(),seeds:gl.createBuffer(),
-        count:0, chaos:0, scale:1, ox:0, oy:0, dim:1, rx:0, ry:0
+        count:0, chaos:0, scale:1, ox:0, oy:0, dim:1, rx:0, ry:0, texId:null
       });
     }
     resize(); addEventListener("resize",resize);
     gl.enable(gl.BLEND);
-    /* 预乘 alpha 的标准混合：高密度下保住照片本色，不糊成白斑 */
     gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
     gl.clearColor(0.012,0.02,0.018,1);
   }
@@ -1164,6 +1327,23 @@ const Engine=(()=>{
     canvas.width=innerWidth*dpr; canvas.height=innerHeight*dpr;
     gl.viewport(0,0,canvas.width,canvas.height);
   }
+
+  /* ---- 纹理管理 ---- */
+  function uploadTex(memoryId,imgCanvas){
+    if(texCache.has(memoryId)) return texCache.get(memoryId);
+    const tex=gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D,tex);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,imgCanvas);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    texCache.set(memoryId,tex);
+    /* LRU 淘汰 */
+    while(texCache.size>12){ const k=texCache.keys().next().value; gl.deleteTexture(texCache.get(k)); texCache.delete(k); }
+    return tex;
+  }
+
   function assign(idx,sample){
     const L=layers[idx]; if(!L) return;
     gl.bindBuffer(gl.ARRAY_BUFFER,L.targets);
@@ -1180,6 +1360,7 @@ const Engine=(()=>{
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc,comps,gl.FLOAT,false,0,0);
   }
+
   function render(state){
     if(!ok) return;
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -1210,19 +1391,40 @@ const Engine=(()=>{
       gl.uniform1f(uni.uOffsetX,L.ox);
       gl.uniform1f(uni.uOffsetY,L.oy);
       gl.uniform1f(uni.uDim,L.dim);
-      gl.uniform2f(uni.uRot,L.rx||0,L.ry||0);   // per-layer 独立旋转
+      gl.uniform2f(uni.uRot,L.rx||0,L.ry||0);
       gl.drawArrays(gl.POINTS,0,L.count);
+    }
+
+    /* 水滴透镜：活跃层原图显影（空态尘埃/Info 页不启用） */
+    if(state.mouse.active && Engine.lensTex && S.phase!=="empty" && S.view!=="info"){
+      const aL=layers[1];
+      gl.useProgram(lensProg);
+      gl.uniform2f(lensUni.uMouse,state.mouse.x,state.mouse.y);
+      gl.uniform1f(lensUni.uRadius,st.mouseRadius*.0028);
+      gl.uniform1f(lensUni.uAspect,canvas.width/canvas.height);
+      gl.uniform2f(lensUni.uRot,aL.rx||0,aL.ry||0);
+      gl.uniform1f(lensUni.uScale,aL.scale);
+      gl.uniform1f(lensUni.uOffsetX,aL.ox);
+      gl.uniform1f(lensUni.uOffsetY,aL.oy);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D,Engine.lensTex);
+      gl.uniform1i(lensUni.uTex,0);
+      gl.bindBuffer(gl.ARRAY_BUFFER,quadBuf);
+      gl.enableVertexAttribArray(lensAttrs.aPos);
+      gl.vertexAttribPointer(lensAttrs.aPos,2,gl.FLOAT,false,0,0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,lensIdxBuf);
+      gl.drawElements(gl.TRIANGLES,lensIdxCount,gl.UNSIGNED_SHORT,0);
     }
   }
   if(ok) init(); else canvas.style.background="radial-gradient(60% 50% at 50% 45%,#12201a,#040605 80%)";
-  return {get ok(){return ok},assign,render,layers:()=>layers};
+  return {get ok(){return ok},assign,render,layers:()=>layers,uploadTex,lensTex:null};
 })();
 
 /* ---------- 每帧驱动 ---------- */
 const Mouse={x:-2.5,y:-2.5,tx:-2.5,ty:-2.5, rx:0,ry:0, active:false, down:false, anchorRx:0,anchorRy:0,anchorTx:0,anchorTy:0};
 let lastMove=0;
 addEventListener("pointerdown",e=>{
-  if(e.button===0){
+  if(e.button===0 && !e.target.closest("#settingsPanel")){
     Mouse.down=true;
     Mouse.anchorRx=Mouse.rx; Mouse.anchorRy=Mouse.ry;
     Mouse.anchorTx=Mouse.tx; Mouse.anchorTy=Mouse.ty;
@@ -1234,9 +1436,9 @@ addEventListener("pointerup",e=>{
   const ty=-((e.clientY/innerHeight)*2-1);
   const moved=Math.abs(tx-Mouse.anchorTx)+Math.abs(ty-Mouse.anchorTy);
   Mouse.down=false;
-  /* 回廊中快速点击（无拖动）→ 打开当前记忆的日记 */
+  /* 回廊中快速点击（无拖动）→ 进入记忆花园编辑态 */
   if(S.view==="memory" && moved<0.025){
-    openDiary(currentMemory());
+    enterMemoryGarden(currentMemory());
   }
 });
 addEventListener("pointermove",e=>{
@@ -1252,22 +1454,38 @@ addEventListener("pointermove",e=>{
 });
 let audioLevel=0;
 let lastFrame=performance.now(), ftAcc=0, ftN=0;
-(function frame(now){
+/* P1: 渲染循环可暂停标记 — Music/Info 页时停止 GPU 渲染 */
+let renderActive=true, renderRaf=0;
+function scheduleRender(){ if(!renderActive){ renderActive=true; renderRaf=requestAnimationFrame(frame); } }
+function pauseRender(){ renderActive=false; cancelAnimationFrame(renderRaf); }
+
+/* P2: 光标跟随状态（合并到主循环） */
+const Cur={el:isMobile?null:$("#cursor"),mx:innerWidth/2,my:innerHeight/2,rx:innerWidth/2,ry:innerHeight/2};
+addEventListener("pointermove",e=>{Cur.mx=e.clientX;Cur.my=e.clientY;});
+addEventListener("pointerover",e=>{ if(Cur.el) Cur.el.classList.toggle("hover",!!e.target.closest("button, a, input, .track")); });
+
+/* frame 用函数声明而非命名函数表达式，确保 scheduleRender 可引用 */
+function frame(now){
+  if(!renderActive) return; /* 暂停时直接退出，不重新调度 */
   const t=now*0.001;
   const dt=Math.min(now-lastFrame,50); lastFrame=now;
+  /* P2: 光标跟随（合并到主循环，静止时跳过 DOM 写入） */
+  if(Cur.el){
+    const dx=Cur.mx-Cur.rx, dy=Cur.my-Cur.ry;
+    if(Math.abs(dx)>.3||Math.abs(dy)>.3){
+      Cur.rx=lerp(Cur.rx,Cur.mx,.2); Cur.ry=lerp(Cur.ry,Cur.my,.2);
+      Cur.el.style.transform=`translate(${Cur.rx}px,${Cur.ry}px)`;
+    }
+  }
   if(Mouse.active){
-    /* 涡旋始终跟随鼠标位置 */
     Mouse.x=lerp(Mouse.x,Mouse.tx,.12); Mouse.y=lerp(Mouse.y,Mouse.ty,.12);
-    /* 旋转状态同步给当前活跃层（Garden=layer1，Memory=layer1 中间层） */
     const Ls=Engine.layers();
     if(Ls[1]){ Ls[1].rx=Mouse.rx; Ls[1].ry=Mouse.ry; }
     if(S.view==="memory"){
       [0,2].forEach(i=>{ if(Ls[i]){ Ls[i].rx=lerp(Ls[i].rx||0,0,.08); Ls[i].ry=lerp(Ls[i].ry||0,0,.08); } });
     }
   }
-  /* Gemini 揭字期间的伪电平：字幕像声音一样驱动粒子 */
   const lvl=Math.max(audioLevel, window.__ttsPulse? .3+.4*Math.abs(Math.sin(now*.0042)) : 0);
-  /* 回廊呼吸：邻居层明度起伏 + 极慢视差漂移（转场/拖拽期间不介入） */
   if(S.view==="memory"&&now>Corridor.settleAt){
     const Ls=Engine.layers();
     Ls[0].dim=.42+.07*Math.sin(t*.5);
@@ -1277,7 +1495,6 @@ let lastFrame=performance.now(), ftAcc=0, ftN=0;
     Ls[2].ox=.72+.02*Math.sin(t*.11+2);
   }
   Engine.render({time:t,mouse:Mouse,audio:lvl});
-  /* fps 自适应：持续低于 45fps 时采样网格降一档（仅一次） */
   ftAcc+=dt; ftN++;
   if(ftN>=120){
     const fps=1000/(ftAcc/ftN);
@@ -1287,8 +1504,9 @@ let lastFrame=performance.now(), ftAcc=0, ftN=0;
     }
     ftAcc=0; ftN=0;
   }
-  requestAnimationFrame(frame);
-})(0);
+  renderRaf=requestAnimationFrame(frame);
+}
+frame(0);
 
 /* ============================================================
    Web Audio —— 会呼吸的背景音乐 + 音频电平
@@ -1424,11 +1642,29 @@ const PRELOAD=[
   {name:"浮泡里的自画像",paint:paintBubble,music:"Echo · 浮泡"},
 ];
 function buildMemories(){
-  PRELOAD.forEach((p,i)=>{
-    const c=p.paint();
-    S.memories.push({id:"m"+i,name:p.name,img:c,glow:domColor(c),music:p.music});
-  });
-  loadStoredMemories();
+  /* P0: 启动时只绘制第1个回忆（湖心亭），立即进入可交互状态 */
+  const first=PRELOAD[0];
+  const c=first.paint();
+  S.memories.push({id:"m0",name:first.name,img:c,glow:domColor(c),music:first.music});
+  /* 其余5个回忆在空闲时逐步绘制，不阻塞首屏 */
+  let preloadIdx=1;
+  function paintNext(deadline){
+    while(preloadIdx<PRELOAD.length){
+      const p=PRELOAD[preloadIdx];
+      const pc=p.paint();
+      S.memories.push({id:"m"+preloadIdx,name:p.name,img:pc,glow:domColor(pc),music:p.music});
+      preloadIdx++;
+      if(deadline&&typeof deadline==="object"&&deadline.timeRemaining()<6) break;
+    }
+    if(preloadIdx<PRELOAD.length){
+      if(window.requestIdleCallback) requestIdleCallback(paintNext,{timeout:200});
+      else setTimeout(()=>paintNext(null),16);
+    }
+  }
+  if(window.requestIdleCallback) requestIdleCallback(paintNext,{timeout:200});
+  else setTimeout(()=>paintNext(null),50);
+  /* 后端记忆延迟到首帧渲染后加载 */
+  requestAnimationFrame(()=>loadStoredMemories());
 }
 /* 从后端拉取记忆；不可用（如 file:// 直开）时回退 localStorage */
 async function loadStoredMemories(){
@@ -1482,9 +1718,10 @@ function setView(v){
   $("#logoGarden").classList.toggle("hidden",v==="memory");
   $("#logoCorridor").classList.toggle("hidden",v!=="memory");
   $("#settingsBtn").style.display=v==="info"?"none":"";
-  if(v==="memory"){ enterCorridor(); }
-  else if(v==="garden"){ enterGarden(); }
-  else if(v==="music"){ enterMusicView(); }
+  if(v==="memory"){ scheduleRender(); enterCorridor(); }
+  else if(v==="garden"){ scheduleRender(); enterGarden(); }
+  else if(v==="music"){ scheduleRender(); enterMusicView(); }
+  else if(v==="info"){ pauseRender(); Engine.layers().forEach(L=>{L.count=0;}); }
   else { Engine.layers().forEach(L=>{L.count=0;}); }
 }
 function enterGarden(){
@@ -1493,6 +1730,7 @@ function enterGarden(){
   if(m){
     Ls[0].count=0; Ls[2].count=0;
     Engine.assign(1,Sampler.sample(m.img));
+    Engine.lensTex=Engine.uploadTex(m.id,m.img);
     tween(Ls[1],"scale",1); tween(Ls[1],"ox",0); tween(Ls[1],"oy",0); tween(Ls[1],"dim",1);
     tween(Ls[1],"chaos",0,1400);
   }
@@ -1521,23 +1759,24 @@ function openDiary(m){
 function enterMusicView(){
   UI.gardenVisibility();
   rebuildTracks();
+  TweenEngine.cancelAll();
   const Ls=Engine.layers();
-  corridorAnim.forEach(t=>t.cancel()); corridorAnim=[];
   Ls.forEach(L=>L.count=0);
   const m=currentMemory();
   Engine.assign(1,Sampler.sample(m.img,2));
+  Engine.lensTex=Engine.uploadTex(m.id,m.img);
   Object.assign(Ls[1],{scale:.62,ox:0,oy:.12,dim:.5,chaos:.55});
 }
 
 /* ---------- 走廊布局 ---------- */
 const Corridor={dragActive:false,settleAt:0};
-let corridorAnim=[];
 function layoutCorridor(snap){
-  const Ls=Engine.layers(); corridorAnim.forEach(t=>t.cancel()); corridorAnim=[];
+  const Ls=Engine.layers(); TweenEngine.cancelAll();
   const n=S.memories.length;
   const prev=(S.memoryIdx-1+n)%n, next=(S.memoryIdx+1)%n;
   Engine.assign(0,Sampler.sample(S.memories[prev].img,3));   // 邻居抽稀
   Engine.assign(1,Sampler.sample(S.memories[S.memoryIdx].img,1));
+  Engine.lensTex=Engine.uploadTex(S.memories[S.memoryIdx].id,S.memories[S.memoryIdx].img);
   Engine.assign(2,Sampler.sample(S.memories[next].img,3));
   const cfg=[
     {scale:.5,ox:-.72,oy:0,dim:.42,chaos:.32},
@@ -1559,11 +1798,10 @@ function renderMemoryName(){
 }
 function switchMemory(dir){
   S.memoryIdx=(S.memoryIdx+dir+S.memories.length)%S.memories.length;
-  // 弥散 → 重聚 的转场（三层一起，邻居不再瞬跳）
+  TweenEngine.cancelAll();
   const Ls=Engine.layers();
-  corridorAnim.forEach(t=>t.cancel()); corridorAnim=[];
   Ls.forEach((L,i)=>tween(L,"chaos",.55,260,i===1?()=>{layoutCorridor(false);}:null));
-  if(!S.muted) AudioEngine.start(S.memoryIdx);   // 浏览时自动切换该记忆的配乐
+  if(!S.muted) AudioEngine.start(S.memoryIdx);
   renderDots();
 }
 function renderDots(){
@@ -1580,22 +1818,37 @@ function renderDots(){
   });
 }
 
-/* ---------- 极简补间 ---------- */
-function tween(obj,key,to,dur=700,done){
-  const from=obj[key], t0=performance.now();
-  const handles=corridorAnim;
-  const h={cancel(){this.dead=true}};
-  const tick=now=>{
-    if(h.dead) return;
-    let p=clamp((now-t0)/dur,0,1);
-    p=1-Math.pow(1-p,3); // easeOutCubic
-    obj[key]=lerp(from,to,p);
-    if(p<1) requestAnimationFrame(tick); else done&&done();
-  };
-  requestAnimationFrame(tick);
-  if(handles) handles.push(h);
-  return h;
-}
+/* P5: 统一补间调度 — 单 RAF 批量更新所有活跃补间 */
+const TweenEngine=(()=>{
+  const queue=[];  /* {obj,key,from,to,dur,t0,done,dead} */
+  let running=false;
+  function tick(now){
+    let i=queue.length;
+    while(i--){
+      const tw=queue[i];
+      if(tw.dead){ queue.splice(i,1); continue; }
+      let p=clamp((now-tw.t0)/tw.dur,0,1);
+      p=1-Math.pow(1-p,3); /* easeOutCubic */
+      tw.obj[tw.key]=lerp(tw.from,tw.to,p);
+      if(p>=1){ queue.splice(i,1); tw.done&&tw.done(); }
+    }
+    if(queue.length) requestAnimationFrame(tick);
+    else running=false;
+  }
+  function tween(obj,key,to,dur=700,done){
+    /* 移除同对象同属性的旧补间 */
+    for(let i=queue.length-1;i>=0;i--){
+      if(queue[i].obj===obj&&queue[i].key===key) queue.splice(i,1);
+    }
+    const tw={obj,key,from:obj[key],to,dur,t0:performance.now(),done,dead:false};
+    queue.push(tw);
+    if(!running){ running=true; requestAnimationFrame(tick); }
+    return {cancel(){tw.dead=true;}};
+  }
+  function cancelAll(){ queue.length=0; running=false; }
+  return {tween,cancelAll,get queue(){return queue}};
+})();
+const tween=TweenEngine.tween;
 
 /* ============================================================
    UI 可见性
@@ -1608,8 +1861,22 @@ const UI={
     $("#settingsBtn").classList.toggle("hidden",!inGarden);
     $("#settingsBtn").style.display=inGarden?"":"none";
     $("#micIdle").classList.toggle("hidden",!(inGarden&&S.phase==="formed"));
+    /* 模式选择弹窗 */
+    $("#modePicker").classList.toggle("hidden",!(inGarden&&S.phase==="modePick"));
     $("#micListen").classList.toggle("hidden",!(inGarden&&["listening","speaking","paused"].includes(S.phase)));
+    /* 录音模式下只显示计时+红色录音脉冲，不显示 typing 指示 */
+    $("#typingPill").classList.toggle("hidden",S.sessionMode!=="chat"||!$("#typingPill").dataset.on);
     $("#liveTimerPill").classList.toggle("hidden",!(inGarden&&["listening","speaking"].includes(S.phase)));
+    /* 录音模式：麦圈变红，问答模式：保持绿色 */
+    if(S.sessionMode==="record"){
+      const big=$("#micBig");
+      big.style.background="radial-gradient(circle at 50% 38%,#ef5f6b,#b8303a)";
+      big.style.boxShadow="0 0 44px rgba(239,95,107,.55),0 0 120px rgba(239,95,107,.25)";
+    }else{
+      const big=$("#micBig");
+      big.style.background="";
+      big.style.boxShadow="";
+    }
     $("#cluster").classList.toggle("hidden",!active);
     $("#uploadAnotherBtn").classList.toggle("hidden",!active);
     $("#shareModal").classList.toggle("hidden",!(inGarden&&S.phase==="empty"));
@@ -1630,18 +1897,22 @@ function fmt(ms){
   const s=Math.floor(ms/1000);
   return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
 }
-setInterval(()=>{
-  if(S.timerOn){
-    S.sessionElapsed=performance.now()-S.sessionStart;
-    $("#timerPill").textContent=fmt(S.sessionElapsed);
-    $("#liveTimerPill").textContent=fmt(S.sessionElapsed);
-  }
-},400);
+/* P3: 计时器惰性启动 — 按需创建/清除 interval */
+let _timerIv=null;
+function _tickTimer(){
+  S.sessionElapsed=performance.now()-S.sessionStart;
+  $("#timerPill").textContent=fmt(S.sessionElapsed);
+  $("#liveTimerPill").textContent=fmt(S.sessionElapsed);
+}
 function startTimer(reset){
   if(reset) S.sessionStart=performance.now();
   S.timerOn=true;
+  if(!_timerIv) _timerIv=setInterval(_tickTimer,400);
 }
-function stopTimer(){ S.timerOn=false; }
+function stopTimer(){
+  S.timerOn=false;
+  if(_timerIv){ clearInterval(_timerIv); _timerIv=null; }
+}
 
 /* ============================================================
    字幕 & 对话
@@ -1674,21 +1945,24 @@ const Caps={
 };
 function typing(on){ $("#typingPill").classList.toggle("hidden",!on); }
 
-/* ---------- 对话引擎 ---------- */
+/* ---------- 对话引擎（record / chat 双模式） ---------- */
 const Convo={
-  mode:null, paused:false, turn:0, transcript:[], timer:null,
-  start(){
+  mode:null, paused:false, turn:0, transcript:[], timer:null, rec:null,
+  /* 入口：mode="record" 录音留声，mode="chat" AI 问答 */
+  start(mode){
+    S.sessionMode=mode||"chat";
     startTimer(true);
     this.paused=false; this.turn=0; this.transcript=[];
-    this.decideMode().then(({mode,stream})=>{
-      if(S.phase!=="listening"&&S.phase!=="speaking") { /* 已被取消 */ return; }
-      this.mode=mode;
-      if(stream) AudioEngine.attachMic(stream);   // 说话强度 → 粒子舞动
-      this.greeting(mode);                        // 对应视频：AI 先开口引导
+    this.decideMode().then(({mode:sttMode,stream})=>{
+      if(S.phase!=="listening"&&S.phase!=="speaking") return;
+      this.mode=sttMode;
+      if(stream) AudioEngine.attachMic(stream);
+      if(S.sessionMode==="chat") this.greeting(sttMode);
+      else this.startRecord(sttMode);   /* record 模式无开场白，直接开录 */
     });
     S.phase="listening"; UI.gardenVisibility();
   },
-  /* Gemini 开场白：基于照片像朋友一样引导用户开口 */
+  /* ---- Chat 模式：AI 开场引导 ---- */
   greeting(mode){
     const m=currentMemory();
     let g;
@@ -1705,7 +1979,18 @@ const Convo={
       });
     },900+rnd(500));
   },
-  /* 探测麦克风：可用→真实语音识别；不可用→演示脚本。返回流供电平分析 */
+  /* ---- Record 模式：纯录音，无回复 ---- */
+  startRecord(sttMode){
+    if(sttMode==="real"){
+      this.startReal();
+    }else{
+      /* record 演示：无麦克风时显示提示，不自动跑脚本 */
+      Caps.main("（麦克风不可用，请在 HTTPS 或 localhost 下使用）");
+      Caps.sub("");
+      S.phase="listening"; UI.gardenVisibility();
+    }
+  },
+  /* 探测麦克风 */
   decideMode(){
     if(!(window.SpeechRecognition||window.webkitSpeechRecognition)||!navigator.mediaDevices) return Promise.resolve({mode:"demo"});
     return Promise.race([
@@ -1737,7 +2022,6 @@ const Convo={
       rec.onerror=e=>{ if(e.error==="not-allowed"||e.error==="service-not-allowed"||e.error==="audio-capture"){ this.fallbackDemo(); } };
       rec.onend=()=>{ if(S.phase==="listening"&&!this.paused&&this.mode==="real"){ try{rec.start()}catch(_){}} };
       try{ rec.start(); }catch(_){ this.fallbackDemo(); }
-      /* 看门狗：迟迟没有任何识别结果（无麦克风/无网络）→ 转演示脚本 */
       this.gotAny=false;
       clearTimeout(this._wd);
       this._wd=setTimeout(()=>{ if(!this.gotAny&&this.mode==="real") this.fallbackDemo(); },8000);
@@ -1745,25 +2029,53 @@ const Convo={
     }catch(e){ this.fallbackDemo(); }
   },
   fallbackDemo(){
-    /* 先彻底停掉语音识别，避免环境噪音触发 userSay 打断演示脚本 */
     if(this.rec){ try{this.rec.onend=null;this.rec.onresult=null;this.rec.stop();}catch(_){} this.rec=null; }
-    this.mode="demo"; this.startDemo();
+    this.mode="demo";
+    if(S.sessionMode==="chat") this.startDemo();
+    /* record 模式不回退演示 */
   },
+  /* 用户说完一句话 */
   userSay(text){
     if(!text||this.mode!=="real") return;
-    this.transcript.push({who:"U",text});
+    const ts=fmt(performance.now()-S.sessionStart);
+    this.transcript.push({who:"U",text,ts,at:Date.now()});
     S.phase="speaking"; UI.gardenVisibility();
     Caps.main(text); Caps.sub("");
-    typing(true);
-    setTimeout(()=>{
-      typing(false);
-      const reply=brainReply(text);
-      this.geminiSay(reply);
-    },1100+rnd(500));
+    if(S.sessionMode==="record"){
+      /* record 模式：只记录，不回复，字幕短暂停留后恢复收听 */
+      setTimeout(()=>{ Caps.clear(); S.phase="listening"; UI.gardenVisibility(); },1200);
+    }else{
+      /* chat 模式：调 AI 回复 */
+      typing(true);
+      setTimeout(async()=>{
+        typing(false);
+        let reply;
+        try{ reply=await this.chatTurn(text); }catch(_){}
+        if(!reply) reply=brainReply(text);
+        this.geminiSay(reply);
+      },800+rnd(400));
+    }
+  },
+  /* chat 模式：调 /api/chat 获取真模型回复 */
+  async chatTurn(text){
+    try{
+      const ctrl=new AbortController();
+      const to=setTimeout(()=>ctrl.abort(),12000);
+      const r=await fetch("/api/chat",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({messages:this.transcript.slice(-12).map(t=>({role:t.who==="U"?"user":"assistant",content:t.text})),photo:currentMemory().name}),
+        signal:ctrl.signal
+      });
+      clearTimeout(to);
+      if(!r.ok) throw 0;
+      const d=await r.json();
+      return d.reply||"";
+    }catch(_){ return ""; }
   },
   geminiSay(text,done){
-    this.transcript.push({who:"G",text});
-    window.__ttsPulse=1;                       // 揭字期间粒子随"声音"舞动
+    const ts=fmt(performance.now()-S.sessionStart);
+    this.transcript.push({who:"G",text,ts,at:Date.now()});
+    window.__ttsPulse=1;
     Caps.reveal(text,{speed:80},()=>{
       if(S.phase==="speaking") S.phase="listening";
       UI.gardenVisibility();
@@ -1998,21 +2310,16 @@ function loadMemoryToGarden(m,fresh){
   const Ls=Engine.layers();
   Ls[0].count=0; Ls[2].count=0;
   Engine.assign(1,Sampler.sample(m.img));
+  Engine.lensTex=Engine.uploadTex(m.id,m.img);
   Object.assign(Ls[1],{scale:1,ox:0,oy:0,dim:1});   // 从空闲尘埃/音乐页回来时恢复花园态
   if(fresh){
     const tk=++loadToken;
     S.phase="forming";
     Ls[1].chaos=1;
     tween(Ls[1],"chaos",0,2000,()=>{
-      if(tk!==loadToken) return;               // 已被更新的上传取代
+      if(tk!==loadToken) return;
       if(S.phase==="forming") S.phase="formed";
       UI.gardenVisibility();
-      /* 对应视频逻辑：上传后自动进入语音对话 */
-      if(S.phase==="formed"&&S.view==="garden"){
-        setTimeout(()=>{
-          if(S.phase==="formed"&&S.view==="garden") Convo.start();
-        },800);
-      }
     });
     startTimer(true);
     Convo.end&&Convo.end();
@@ -2046,8 +2353,11 @@ $("#fileInput").addEventListener("change",e=>{
   acceptImage(e.target.files[0]); e.target.value="";
 });
 
-/* 麦克风 */
-$("#micIdle").addEventListener("click",()=>{ if(S.phase==="formed") Convo.start(); });
+/* 麦克风：点击后弹出模式选择 */
+$("#micIdle").addEventListener("click",()=>{ if(S.phase==="formed"){ S.phase="modePick"; UI.gardenVisibility(); } });
+/* 模式选择 */
+$("#mpRecordBtn").addEventListener("click",()=>{ if(S.phase==="modePick") Convo.start("record"); });
+$("#mpChatBtn").addEventListener("click",()=>{ if(S.phase==="modePick") Convo.start("chat"); });
 $("#micBig").addEventListener("click",()=>{ if(Convo.paused) Convo.pause(false); });
 $("#pauseBtn").addEventListener("click",()=>Convo.pause(!Convo.paused));
 $("#convCancelBtn").addEventListener("click",()=>Convo.end());
@@ -2074,9 +2384,6 @@ $("#diaryCloseBtn").addEventListener("click",()=>{ S.phase="formed"; UI.gardenVi
 /* 走廊 */
 $("#prevBtn").addEventListener("click",()=>switchMemory(-1));
 $("#nextBtn").addEventListener("click",()=>switchMemory(1));
-/* 回廊点击已由 pointerup 统一处理，corridorCover click handler 废弃 */
-/* 回廊拖拽换页 — 已废弃，改用箭头切换 */
-let corridorDrag=null;
 addEventListener("keydown",e=>{
   if(e.key==="Escape"){ $("#settingsPanel").classList.remove("open"); $("#menuOverlay").classList.remove("open"); }
   if(S.view==="memory"){
@@ -2087,17 +2394,17 @@ addEventListener("keydown",e=>{
 
 /* 参数面板 */
 const PARAM_DEFS=[
-  {key:"dispersion",label:"DISPERSION",min:0,max:3},
-  {key:"particleSize",label:"PARTICLE SIZE",min:.5,max:6},
-  {key:"contrast",label:"CONTRAST",min:.5,max:2},
-  {key:"flowSpeed",label:"FLOW SPEED",min:0,max:3},
-  {key:"flowAmplitude",label:"FLOW AMPLITUDE",min:0,max:3},
-  {key:"depthStrength",label:"DEPTH STRENGTH",min:0,max:100},
-  {key:"mouseRadius",label:"MOUSE RADIUS",min:0,max:300},
-  {key:"colorShiftSpeed",label:"COLOR SHIFT SPEED",min:0,max:10},
-  {section:"AUDIO DANCE"},
-  {key:"danceStrength",label:"DANCE STRENGTH",min:0,max:20},
-  {key:"depthWave",label:"DEPTH WAVE",min:0,max:20},
+  {key:"dispersion",label:"弥散度",min:0,max:3},
+  {key:"particleSize",label:"粒子大小",min:.5,max:6},
+  {key:"contrast",label:"对比度",min:.5,max:2},
+  {key:"flowSpeed",label:"流场速度",min:0,max:3},
+  {key:"flowAmplitude",label:"流场幅度",min:0,max:3},
+  {key:"depthStrength",label:"深度强度",min:0,max:30},
+  {key:"mouseRadius",label:"光标范围",min:20,max:160},
+  {key:"colorShiftSpeed",label:"色相偏移",min:0,max:10},
+  {section:"音频舞动"},
+  {key:"danceStrength",label:"舞动强度",min:0,max:20},
+  {key:"depthWave",label:"深度波浪",min:0,max:12},
 ];
 (function buildParams(){
   const box=$("#paramList");
@@ -2173,10 +2480,17 @@ buildMemories();
 (function idleDust(){
   const Ls=Engine.layers();
   Engine.assign(1,Sampler.dust());
+  Engine.lensTex=null;                 /* 空态尘埃不显示水滴显影 */
   Object.assign(Ls[1],{scale:1,ox:0,oy:0,dim:.34,chaos:.9});
 })();
 S.phase="empty";
 UI.gardenVisibility();
+
+/* 启动时查询 AI 状态，pill 显示真实模型名 */
+fetch("/api/ai-status").then(r=>r.json()).then(d=>{
+  const names={gemini:"Gemini",deepseek:"DeepSeek",openai:"OpenAI",moonshot:"Moonshot",qwen:"Qwen",openrouter:"OpenRouter",ollama:"Ollama"};
+  $("#pillName").textContent=names[d.provider]||"AI";
+}).catch(()=>{});
 </script>
 </body>
 </html>
