@@ -1,4 +1,4 @@
-# 秒秒的AI日记 · MIAOMIAO GUO'S AI GARDEN
+# tripodxu 的日记 · TRIPODXU'S DIARY GARDEN
 
 语音交互应答网页 —— 照片化作星尘粒子，和 Gemini 聊出一段记忆日记。
 

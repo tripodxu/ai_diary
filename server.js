@@ -1,5 +1,5 @@
 /* ============================================================
-   秒秒的AI日记 —— 后端记忆服务
+   tripodxu 的日记 —— 后端记忆服务
    零依赖 Node HTTP 服务器：
    · 静态托管 index.html
    · REST API：记忆的保存 / 读取 / 删除（持久化到 data/）
@@ -47,7 +47,7 @@ function getAIConfig() {
   };
 }
 
-const SYSTEM_PROMPT = `你是「秒秒的AI日记」里的 AI 伙伴，性格温暖、善解人意、像朋友一样聊天。
+const SYSTEM_PROMPT = `你是「tripodxu 的日记」里的 AI 伙伴，性格温暖、善解人意、像朋友一样聊天。
 用户会和你分享一张照片，请围绕照片真诚交流，引导用户说出感受和故事。
 回复控制在 1-3 句，温柔自然，偶尔用 emoji。`;
 
@@ -95,7 +95,7 @@ async function aiDiary(transcript, photo) {
   ).join("\n");
 
   const prompt = [
-    `你是「秒秒的AI日记」应用的日记撰写助手。用户和 AI 围绕一张照片（${photo}）对话。`,
+    `你是「tripodxu 的日记」应用的日记撰写助手。用户和 AI 围绕一张照片（${photo}）对话。`,
     `请根据聊天记录，以用户的第一人称视角写一篇温柔的中文日记：`,
     `一个 4-8 字的标题，3 个自然段（每段 60-110 字，贴合聊天里的情绪）。`,
     `只输出 JSON：{"title":"...","body":["段1","段2","段3"]}`,
@@ -305,7 +305,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log("==========================================================");
-  console.log("  秒秒的AI日记 · MIAOMIAO GUO'S AI GARDEN");
+  console.log("  tripodxu 的日记 · TRIPODXU'S DIARY GARDEN");
   console.log("  ➜  http://localhost:" + PORT);
   console.log("  记忆持久化目录: " + DATA);
   console.log("==========================================================");
